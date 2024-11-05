@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { ServiceGrid } from './components/ServiceGrid';
 import { CategoryFilter } from './components/CategoryFilter';
-import { AvailabilityCalendar } from './components/AvailabilityCalendar';
 import { ThemeToggle } from './components/ThemeToggle';
 import { services } from './data/services';
 import { generateAvailabilityData } from './data/availability';
 import { Service, ServiceCategory, Availability } from './types';
 import { CalendarRange, Menu, X } from 'lucide-react';
+
+const AvailabilityCalendar = React.lazy(() => 
+  import('./components/AvailabilityCalendar').then(module => ({
+    default: module.AvailabilityCalendar
+  }))
+);
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState<ServiceCategory | undefined>();
@@ -24,7 +29,7 @@ function App() {
     setAvailabilityData(data);
   }, []);
 
-  const handleServiceSelect = (service: Service) => {
+  const handleServiceSelect = useCallback((service: Service) => {
     setSelectedServices((prev) => {
       const next = new Set(prev);
       if (next.has(service.id)) {
@@ -34,7 +39,7 @@ function App() {
       }
       return next;
     });
-  };
+  }, []);
 
   const selectedServicesList = services.filter((service) =>
     selectedServices.has(service.id)
@@ -42,22 +47,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden fixed top-4 right-4 z-30">
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 bg-white dark:bg-gray-800 rounded-lg shadow-md"
-        >
-          {isMobileMenuOpen ? (
-            <X className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-          ) : (
-            <Menu className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-          )}
-        </button>
-      </div>
-
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm transition-colors">
+      <header className="fixed top-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 shadow-sm transition-colors">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -71,6 +62,16 @@ function App() {
               <div className="hidden sm:block text-sm text-gray-500 dark:text-gray-400">
                 Selected Services: {selectedServices.size}
               </div>
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+                ) : (
+                  <Menu className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -81,7 +82,7 @@ function App() {
         fixed inset-0 z-20 bg-white dark:bg-gray-800 transform transition-transform duration-300 lg:hidden
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="p-4 pt-16">
+        <div className="p-4 pt-20">
           <CategoryFilter
             selected={selectedCategory}
             onChange={(category) => {
@@ -93,10 +94,10 @@ function App() {
       </div>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-4 sm:py-8 pb-24 sm:px-6 lg:px-8">
-        <div className="space-y-4 sm:space-y-8">
+      <main className="mx-auto max-w-7xl px-4 pt-20 pb-24 sm:px-6 lg:px-8">
+        <div className="space-y-4">
           {/* Desktop Category Filter */}
-          <div className="hidden lg:block sticky top-0 z-20 -mx-4 bg-gray-50/80 dark:bg-gray-900/80 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="hidden lg:block sticky top-20 z-20 -mx-4 bg-gray-50/80 dark:bg-gray-900/80 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
             <CategoryFilter
               selected={selectedCategory}
               onChange={setSelectedCategory}
@@ -112,7 +113,7 @@ function App() {
           />
         </div>
 
-        {/* Selected Services Summary - Mobile Optimized */}
+        {/* Selected Services Summary */}
         {selectedServices.size > 0 && (
           <div className="fixed bottom-0 left-0 right-0 z-10 bg-white dark:bg-gray-800 p-4 shadow-lg transition-colors">
             <div className="mx-auto max-w-7xl">
@@ -136,13 +137,15 @@ function App() {
 
         {/* Availability Calendar Modal */}
         {showAvailability && selectedServices.size > 0 && (
-          <AvailabilityCalendar
-            services={selectedServicesList}
-            selectedDate={selectedDate}
-            onDateChange={setSelectedDate}
-            onClose={() => setShowAvailability(false)}
-            availabilityData={availabilityData}
-          />
+          <Suspense fallback={null}>
+            <AvailabilityCalendar
+              services={selectedServicesList}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              onClose={() => setShowAvailability(false)}
+              availabilityData={availabilityData}
+            />
+          </Suspense>
         )}
       </main>
     </div>
